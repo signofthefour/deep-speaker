@@ -236,7 +236,7 @@ class LazyTripletBatcher:
 
         # print(batch_x.shape)
 
-        return batch_x, [batch_y]
+        return batch_x, np.array(batch_y).reshape((1,))
 
     def get_batch_train(self, batch_size):
         from test import batch_cosine_similarity
