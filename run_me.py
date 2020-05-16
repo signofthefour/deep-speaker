@@ -25,7 +25,7 @@ def main(args):
     if args.train_embedding:
         if args.pre_training_phase:
             start_training(args.working_dir, pre_training_phase=args.pre_training_phase)
-        start_training(args.working_dir, False)
+        start_training(args.working_dir,  pre_training_phase=False)
 
     if args.train_classifier:
         start_training(args.working_dir, pre_training_phase=False, classify=True)
