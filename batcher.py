@@ -234,9 +234,10 @@ class LazyTripletBatcher:
             for sp in negative_speakers:
                 batch_y.append(self.encode_speaker.get_one_hot(sp))
 
-        # print(batch_x.shape)
+        print(batch_x.shape)
+        print(batch_y)
 
-        return batch_x, np.array(batch_y).reshape((1,))
+        return batch_x, np.array(batch_y).reshape((3, -1))
 
     def get_batch_train(self, batch_size):
         from test import batch_cosine_similarity
