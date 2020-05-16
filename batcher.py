@@ -116,6 +116,9 @@ class OneHotSpeakers:
     def get_speaker_from_index(self, index):
         return self.map_index_to_speakers[index]
 
+    def get_index_from_speaker(self, speaker):
+        return self.map_speakers_to_index[speaker]
+
     def get_one_hot(self, speaker_id):
         index = self.map_speakers_to_index[speaker_id]
         return self.speaker_categories[index]
@@ -224,20 +227,21 @@ class LazyTripletBatcher:
         if not classify:
             batch_y = np.zeros(shape=(len(batch_x), 1))  # dummy. sparse softmax needs something.
         else:
+            # batch_y = np.zeros(shape=(len(batch_x), 1))  # dummy. sparse softmax needs something.
             batch_y = []
             for sp in anchor_speakers:
-                batch_y.append(self.encode_speaker.get_one_hot(sp))
+                batch_y.append(self.encode_speaker.get_index_from_speaker(sp))
 
             for sp in anchor_speakers:
-                batch_y.append(self.encode_speaker.get_one_hot(sp))
+                batch_y.append(self.encode_speaker.get_index_from_speaker(sp))
 
             for sp in negative_speakers:
-                batch_y.append(self.encode_speaker.get_one_hot(sp))
+                batch_y.append(self.encode_speaker.get_index_from_speaker(sp))
 
-        print(batch_x.shape)
-        print(batch_y)
+        # print(batch_x.shape)
+        # print(np.array(batch_y).reshape((-1)))
 
-        return batch_x, np.array(batch_y).reshape((3, -1))
+        return batch_x, np.array(batch_y)
 
     def get_batch_train(self, batch_size):
         from test import batch_cosine_similarity
