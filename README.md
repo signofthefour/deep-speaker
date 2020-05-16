@@ -1,6 +1,19 @@
 ## Deep Speaker: An End-to-End Neural Speaker Embedding System.
 Unofficial Keras implementation of Deep Speaker | [Paper](https://arxiv.org/pdf/1705.02304.pdf) | [Pretrained Models](https://drive.google.com/open?id=18h2bmsAWrqoUMsh_FQHDDxp7ioGpcNBa)
 
+
+## CLASSIFIER
+### Mod by Duc Nguyen
+How to run:
+```
+python run_me.py --preprocess 1 --build_keras_inputs 1 --train_embedding 1 --pre_training_phase 1 --train_classifier 1
+```
+If you have already finished any step, please set it to 0 for time saving.
+
+After complete training, you can test it with *test_classifier.py*. Remember to modify it first to adapt it with your data.
+
+Good luck!!!
+
 ### Sample Results
 
 
@@ -44,9 +57,9 @@ System requirements for a complete training are:
 
 ### Test instruction using pretrained model
 - Download the trained models
- 
 
- *Model name* | *Used datasets for training* | *Num speakers* | *Model Link* | 
+
+ *Model name* | *Used datasets for training* | *Num speakers* | *Model Link* |
  | :--- | :--- | :--- | :--- |
 ResCNN Softmax trained  | [LibriSpeech](http://www.openslr.org/12/) train-clean-360 | 921 | [Click](https://drive.google.com/open?id=1SJBmHpnaW1VcbFWP6JfvbT3wWP9PsqxS)
 ResCNN Softmax+Triplet trained  | [LibriSpeech](http://www.openslr.org/12/) all | 2484 | [Click](https://drive.google.com/file/d/1F9NvdrarWZNktdX9KlRYWWHDwRkip_aP)
