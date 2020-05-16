@@ -122,7 +122,7 @@ class OneHotSpeakers:
 
 
 class LazyTripletBatcher:
-    def __init__(self, working_dir: str, max_length: int, model: DeepSpeakerModel):
+    def __init__(self, working_dir: str, max_length: int, model: DeepSpeakerModel, classify=False):
         self.working_dir = working_dir
         self.audio = Audio(cache_dir=working_dir)
         logger.info(f'Picking audio from {working_dir}.')
@@ -147,11 +147,12 @@ class LazyTripletBatcher:
         self.history_model_inputs = None
 
         self.batch_count = 0
-        for _ in tqdm(range(self.history_length), desc='Initializing the batcher'):  # init history.
-            self.update_triplets_history()
-
         self.speakers = list(self.audio.speakers_to_utterances.keys())
         self.encode_speaker = OneHotSpeakers(self.speakers)
+
+        if not classify:
+            for _ in tqdm(range(self.history_length), desc='Initializing the batcher'):  # init history.
+                self.update_triplets_history()
 
     def update_triplets_history(self):
         model_inputs = []
@@ -194,7 +195,7 @@ class LazyTripletBatcher:
         positive_utterances = []
         negative_utterances = []
         for anchor_speaker in anchor_speakers:
-            negative_speaker = np.random.choice(list(set(speakers) - {anchor_speaker}), size=1)[0]
+            negative_speaker = np.random.choice(list(set(self.speakers) - {anchor_speaker}), size=1)[0]
             assert negative_speaker != anchor_speaker
             negative_speakers.append(negative_speaker)
             pos_utterances = np.random.choice(sp_to_utt[anchor_speaker], 2, replace=False)
@@ -223,18 +224,19 @@ class LazyTripletBatcher:
         if not classify:
             batch_y = np.zeros(shape=(len(batch_x), 1))  # dummy. sparse softmax needs something.
         else:
-            print("GENERATING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             batch_y = []
-            for sp in range(len(anchor_speakers)):
+            for sp in anchor_speakers:
                 batch_y.append(self.encode_speaker.get_one_hot(sp))
 
-            for sp in range(len(anchor_speakers)):
+            for sp in anchor_speakers:
                 batch_y.append(self.encode_speaker.get_one_hot(sp))
 
-            for sp in range(len(negative_speakers)):
+            for sp in negative_speakers:
                 batch_y.append(self.encode_speaker.get_one_hot(sp))
 
-        return batch_x, batch_y
+        # print(batch_x.shape)
+
+        return batch_x, [batch_y]
 
     def get_batch_train(self, batch_size):
         from test import batch_cosine_similarity

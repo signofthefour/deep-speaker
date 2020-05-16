@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, classify=False):
-    batcher = LazyTripletBatcher(working_dir, max_length, dsm)
+def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, epochs=1000, classify=False):
+    batcher = LazyTripletBatcher(working_dir, max_length, dsm, classify=classify)
 
     # build small test set.
     test_batches = []
@@ -45,7 +45,7 @@ def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRA
     early_stopping = EarlyStopping(monitor='loss', min_delta=0.001, patience=20, verbose=1)
 
     dsm.m.fit_generator(train_generator(), steps_per_epoch=2000, shuffle=False,
-              epochs=1000, validation_data=test_generator(), validation_steps=len(test_batches),
+              epochs=epochs, validation_data=test_generator(), validation_steps=len(test_batches),
               callbacks=[checkpoint, early_stopping])
 
 
@@ -53,13 +53,13 @@ def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_tes
                       batch_size=BATCH_SIZE, max_epochs=1000, initial_epoch=0):
     checkpoint_name = dsm.m.name + '_checkpoint'
     checkpoint_filename = os.path.join(CHECKPOINTS_SOFTMAX_DIR, checkpoint_name + '_{epoch}.h5')
-    checkpoint = ModelCheckpoint(monitor='val_accuracy', filepath=checkpoint_filename, save_best_only=True)
+    checkpoint = ModelCheckpoint(monitor='val_acc', filepath=checkpoint_filename, save_best_only=True)
 
     # if the accuracy does not increase by 0.1% over 20 epochs, we stop the training.
-    early_stopping = EarlyStopping(monitor='val_accuracy', min_delta=0.001, patience=20, verbose=1, mode='max')
+    early_stopping = EarlyStopping(monitor='val_acc', min_delta=0.001, patience=20, verbose=1, mode='max')
 
     # if the accuracy does not increase over 10 epochs, we reduce the learning rate by half.
-    reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, min_lr=0.0001, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.5, patience=10, min_lr=0.0001, verbose=1)
 
     max_len_train = len(kx_train) - len(kx_train) % batch_size
     kx_train = kx_train[0:max_len_train]
@@ -101,7 +101,10 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
         fit_model_softmax(dsm, kc.kx_train, kc.ky_train, kc.kx_test, kc.ky_test, initial_epoch=initial_epoch)
     else:
         logger.info('Training with the triplet loss.')
-        dsm = DeepSpeakerModel(batch_input_shape, include_softmax=False, include_classifier=classify)
+        kc = KerasFormatConverter(working_dir)
+        num_speakers_softmax = len(kc.categorical_speakers.speaker_ids)
+
+        dsm = DeepSpeakerModel(batch_input_shape, include_softmax=False, include_classifier=classify, num_speakers_softmax=num_speakers_softmax)
         classify_checkpoint = load_best_checkpoint(CHECKPOINTS_CLASSIFY_DIR)
         triplet_checkpoint = load_best_checkpoint(CHECKPOINTS_TRIPLET_DIR)
         pre_training_checkpoint = load_best_checkpoint(CHECKPOINTS_SOFTMAX_DIR)
@@ -127,5 +130,9 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
                 # some of the layers have changed.
                 dsm.m.load_weights(pre_training_checkpoint, by_name=True)
 
-        dsm.m.compile(optimizer=SGD(), loss=deep_speaker_loss)
+        if not classify:
+            dsm.m.compile(optimizer=SGD(), loss=deep_speaker_loss)
+        else:
+            dsm.m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            
         fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify)

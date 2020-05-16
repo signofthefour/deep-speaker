@@ -38,9 +38,9 @@ if __name__ == '__main__':
     parser.add_argument('--sample_rate', default=SAMPLE_RATE, type=int)
     parser.add_argument('--counts_per_speaker', default='600,100', type=str) # So luong train, test
 
-    parser.add_argument('--preprocess', default=1, type=int)
-    parser.add_argument('--build_keras_inputs', default=1, type=int)
-    parser.add_argument('--train_embedding', default=1, type=int)
+    parser.add_argument('--preprocess', default=0, type=int)
+    parser.add_argument('--build_keras_inputs', default=0, type=int)
+    parser.add_argument('--train_embedding', default=0, type=int)
     parser.add_argument('--pre_training_phase', default=1, type=int)
     parser.add_argument('--epochs', default=1000, type=int)
     parser.add_argument('--train_classifier', default=1, type=int)
