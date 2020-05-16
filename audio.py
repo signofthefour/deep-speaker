@@ -8,7 +8,7 @@ import numpy as np
 from python_speech_features import fbank
 from tqdm import tqdm
 
-from constants import SAMPLE_RATE, NUM_FBANKS
+from constants import SAMPLE_RATE, NUM_FBANKS, EXT
 from utils import find_files, ensures_dir
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def extract_speaker_and_utterance_ids(filename: str):  # LIBRI.
 
 class Audio:
 
-    def __init__(self, cache_dir: str, audio_dir: str = None, sample_rate: int = SAMPLE_RATE, ext='flac'):
+    def __init__(self, cache_dir: str, audio_dir: str = None, sample_rate: int = SAMPLE_RATE, ext=EXT):
         self.ext = ext
         self.cache_dir = os.path.join(cache_dir, 'audio-fbanks')
         ensures_dir(self.cache_dir)

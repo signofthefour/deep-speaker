@@ -150,11 +150,13 @@ class LazyTripletBatcher:
         for _ in tqdm(range(self.history_length), desc='Initializing the batcher'):  # init history.
             self.update_triplets_history()
 
+        self.speakers = list(self.audio.speakers_to_utterances.keys())
+        self.encode_speaker = OneHotSpeakers(self.speakers)
+
     def update_triplets_history(self):
         model_inputs = []
-        speakers = list(self.audio.speakers_to_utterances.keys())
-        np.random.shuffle(speakers)
-        selected_speakers = speakers[: self.nb_speakers]
+        np.random.shuffle(self.speakers)
+        selected_speakers = self.speakers[: self.nb_speakers]
         embeddings_utterances = []
         for speaker_id in selected_speakers:
             train_utterances = self.sp_to_utt_train[speaker_id]
@@ -180,13 +182,13 @@ class LazyTripletBatcher:
     def get_batch(self, batch_size, is_test=False):
         return self.get_batch_test(batch_size) if is_test else self.get_random_batch(batch_size, is_test=False)
 
-    def get_batch_test(self, batch_size):
-        return self.get_random_batch(batch_size, is_test=True)
+    def get_batch_test(self, batch_size, classify=False):
+        return self.get_random_batch(batch_size, is_test=True, classify=classify)
 
-    def get_random_batch(self, batch_size, is_test=False):
+    def get_random_batch(self, batch_size, is_test=False, classify=False):
         sp_to_utt = self.sp_to_utt_test if is_test else self.sp_to_utt_train
-        speakers = list(self.audio.speakers_to_utterances.keys())
-        anchor_speakers = np.random.choice(speakers, size=batch_size // 3, replace=False)
+        anchor_speakers = np.random.choice(self.speakers, size=batch_size // 3, replace=False)
+        negative_speakers = []
 
         anchor_utterances = []
         positive_utterances = []
@@ -194,6 +196,7 @@ class LazyTripletBatcher:
         for anchor_speaker in anchor_speakers:
             negative_speaker = np.random.choice(list(set(speakers) - {anchor_speaker}), size=1)[0]
             assert negative_speaker != anchor_speaker
+            negative_speakers.append(negative_speaker)
             pos_utterances = np.random.choice(sp_to_utt[anchor_speaker], 2, replace=False)
             neg_utterance = np.random.choice(sp_to_utt[negative_speaker], 1, replace=True)[0]
             anchor_utterances.append(pos_utterances[0])
@@ -217,7 +220,20 @@ class LazyTripletBatcher:
             [sample_from_mfcc_file(u, self.max_length) for u in negative_utterances]
         ])
 
-        batch_y = np.zeros(shape=(len(batch_x), 1))  # dummy. sparse softmax needs something.
+        if not classify:
+            batch_y = np.zeros(shape=(len(batch_x), 1))  # dummy. sparse softmax needs something.
+        else:
+            print("GENERATING>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            batch_y = []
+            for sp in range(len(anchor_speakers)):
+                batch_y.append(self.encode_speaker.get_one_hot(sp))
+
+            for sp in range(len(anchor_speakers)):
+                batch_y.append(self.encode_speaker.get_one_hot(sp))
+
+            for sp in range(len(negative_speakers)):
+                batch_y.append(self.encode_speaker.get_one_hot(sp))
+
         return batch_x, batch_y
 
     def get_batch_train(self, batch_size):
@@ -317,11 +333,10 @@ class LazyTripletBatcher:
         return batch_x, batch_y
 
     def get_speaker_verification_data(self, anchor_speaker, num_different_speakers):
-        speakers = list(self.audio.speakers_to_utterances.keys())
         anchor_utterances = []
         positive_utterances = []
         negative_utterances = []
-        negative_speakers = np.random.choice(list(set(speakers) - {anchor_speaker}), size=num_different_speakers)
+        negative_speakers = np.random.choice(list(set(self.speakers) - {anchor_speaker}), size=num_different_speakers)
         assert [negative_speaker != anchor_speaker for negative_speaker in negative_speakers]
         pos_utterances = np.random.choice(self.sp_to_utt_test[anchor_speaker], 2, replace=False)
         neg_utterances = [np.random.choice(self.sp_to_utt_test[neg], 1, replace=True)[0] for neg in negative_speakers]

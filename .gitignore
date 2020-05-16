@@ -8,6 +8,10 @@ nohup.out
 .idea/
 
 checkpoints/
+checkpoints-classify/
+checkpoints-softmax/
+checkpoints-triplets/
+keras-inputs/
 *.wav
 
 # C extensions

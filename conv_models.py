@@ -27,7 +27,7 @@ class DeepSpeakerModel:
     # MFCC, DIFF(MFCC), DIFF(DIFF(MFCC)), ENERGIES (probably tiled across the frequency domain).
     # this seems to help match the parameter counts.
     def __init__(self, batch_input_shape=(None, NUM_FRAMES, NUM_FBANKS, 1), include_softmax=False,
-                 num_speakers_softmax=None):
+                 num_speakers_softmax=None, include_classifier=False):
         self.include_softmax = include_softmax
         if self.include_softmax:
             assert num_speakers_softmax > 0
@@ -65,7 +65,14 @@ class DeepSpeakerModel:
         else:
             # Does not contain any weights.
             x = Lambda(lambda y: K.l2_normalize(y, axis=1), name='ln')(x)
+
+            if include_classifier:
+                x = Dense(num_speakers_softmax, activation='softmax')(x)
         self.m = Model(inputs, x, name='ResCNN')
+
+        if include_classifier:
+            for layer in self.m.layers[:-1]:
+                layer.trainable = False
 
     def keras_model(self):
         return self.m
