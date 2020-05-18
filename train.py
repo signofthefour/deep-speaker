@@ -98,7 +98,7 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
             dsm.m.load_weights(pre_training_checkpoint)  # latest one.
         else:
             initial_epoch = 0
-        fit_model_softmax(dsm, kc.kx_train, kc.ky_train, kc.kx_test, kc.ky_test, initial_epoch=initial_epoch)
+        fit_model_softmax(dsm, kc.kx_train, kc.ky_train, kc.kx_test, kc.ky_test, initial_epoch=initial_epoch, max_epochs=epochs)
     else:
         logger.info('Training with the triplet loss.')
         kc = KerasFormatConverter(working_dir)
@@ -134,5 +134,5 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
             dsm.m.compile(optimizer=SGD(), loss=deep_speaker_loss)
         else:
             dsm.m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-            
+
         fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify)
