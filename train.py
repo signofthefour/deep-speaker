@@ -53,13 +53,13 @@ def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_tes
                       batch_size=BATCH_SIZE, max_epochs=1000, initial_epoch=0):
     checkpoint_name = dsm.m.name + '_checkpoint'
     checkpoint_filename = os.path.join(CHECKPOINTS_SOFTMAX_DIR, checkpoint_name + '_{epoch}.h5')
-    checkpoint = ModelCheckpoint(monitor='val_acc', filepath=checkpoint_filename, save_best_only=True)
+    checkpoint = ModelCheckpoint(monitor='val_accuracy', filepath=checkpoint_filename, save_best_only=True)
 
     # if the accuracy does not increase by 0.1% over 20 epochs, we stop the training.
-    early_stopping = EarlyStopping(monitor='val_acc', min_delta=0.001, patience=20, verbose=1, mode='max')
+    early_stopping = EarlyStopping(monitor='val_accuracy', min_delta=0.001, patience=20, verbose=1, mode='max')
 
     # if the accuracy does not increase over 10 epochs, we reduce the learning rate by half.
-    reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.5, patience=10, min_lr=0.0001, verbose=1)
+    reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, min_lr=0.0001, verbose=1)
 
     max_len_train = len(kx_train) - len(kx_train) % batch_size
     kx_train = kx_train[0:max_len_train]
