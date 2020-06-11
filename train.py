@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, epochs=1000, classify=False):
+def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, epochs=1000, classify=False, initial_epoch=0):
     batcher = LazyTripletBatcher(working_dir, max_length, dsm, classify=classify)
 
     # build small test set.
@@ -46,7 +46,7 @@ def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRA
 
     dsm.m.fit_generator(train_generator(), steps_per_epoch=2000, shuffle=False,
               epochs=epochs, validation_data=test_generator(), validation_steps=len(test_batches),
-              callbacks=[checkpoint, early_stopping])
+              initial_epoch=initial_epoch, callbacks=[checkpoint, early_stopping])
 
 
 def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_test,
@@ -108,10 +108,12 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
         classify_checkpoint = load_best_checkpoint(CHECKPOINTS_CLASSIFY_DIR)
         triplet_checkpoint = load_best_checkpoint(CHECKPOINTS_TRIPLET_DIR)
         pre_training_checkpoint = load_best_checkpoint(CHECKPOINTS_SOFTMAX_DIR)
+        initial_epoch = 0
 
         if classify:
             if classify_checkpoint:
                 dsm.m.load_weights(classify_checkpoint)
+                initial_epoch = int(classify_checkpoint.split('/')[-1].split('.')[0].split('_')[-1])
             elif triplet_checkpoint:
                 logger.info(f'Loading triplet checkpoint: {triplet_checkpoint}.')
                 dsm.m.load_weights(triplet_checkpoint, by_name=True)
@@ -123,6 +125,8 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
             if triplet_checkpoint is not None:
                 logger.info(f'Loading triplet checkpoint: {triplet_checkpoint}.')
                 dsm.m.load_weights(triplet_checkpoint)
+                initial_epoch = int(triplet_checkpoint.split('/')[-1].split('.')[0].split('_')[-1])
+
             elif pre_training_checkpoint is not None:
                 logger.info(f'Loading pre-training checkpoint: {pre_training_checkpoint}.')
                 # If `by_name` is True, weights are loaded into layers only if they share the
@@ -135,4 +139,4 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
         else:
             dsm.m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-        fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify)
+        fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify, initial_epoch=initial_epoch)
