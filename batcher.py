@@ -113,10 +113,12 @@ class OneHotSpeakers:
             self.int_speaker_ids = list(range(len(self.speaker_ids)))
             self.map_speakers_to_index = dict([(k, v) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
             self.map_index_to_speakers = dict([(v, k) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
-            pickle.dump(self.map_index_to_speakers, open(speaker_file, 'wb'))
+            with open(speaker_file, 'wb') as f:
+                pickle.dump(self.map_index_to_speakers, f)
 
         else:
-            self.map_index_to_speakers = pickle.load(open(speaker_file, 'rb'))
+            with open(speaker_file, 'rb') as f:
+                self.map_index_to_speakers = pickle.load(f)
             self.map_speakers_to_index = dict([(k, v) for (v, k) in self.map_index_to_speakers.items()])
             self.speaker_ids = self.map_speakers_to_index.keys()
             self.int_speaker_ids = list(range(len(self.speaker_ids)))
