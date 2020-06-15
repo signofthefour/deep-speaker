@@ -109,9 +109,9 @@ class SparseCategoricalSpeakers:
 
 class OneHotSpeakers:
 
-    def __init__(self, speakers_list, load_speaker=False, speaker_file='./speaker_categories.pkl'):
+    def __init__(self, speakers_list,  speaker_file='./keras-inputs/categorical_speakers.pkl'):
         from tensorflow.keras.utils import to_categorical
-        if not load_speaker:
+        if not os.path.exists(speaker_file):
             self.speaker_ids = sorted(speakers_list)
             self.int_speaker_ids = list(range(len(self.speaker_ids)))
             self.map_speakers_to_index = dict([(k, v) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
@@ -120,8 +120,7 @@ class OneHotSpeakers:
                 pickle.dump(self.map_index_to_speakers, f)
 
         else:
-            with open(speaker_file, 'rb') as f:
-                self.map_index_to_speakers = pickle.load(f)
+            self.map_index_to_speakers = load_pickle(speaker_file)
             self.map_speakers_to_index = dict([(k, v) for (v, k) in self.map_index_to_speakers.items()])
             self.speaker_ids = self.map_speakers_to_index.keys()
             self.int_speaker_ids = list(range(len(self.speaker_ids)))
