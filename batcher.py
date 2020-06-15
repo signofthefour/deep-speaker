@@ -4,6 +4,7 @@ import os
 from collections import deque, Counter
 from random import choice
 from time import time
+import pickle
 
 import dill
 import numpy as np
@@ -105,12 +106,21 @@ class SparseCategoricalSpeakers:
 
 class OneHotSpeakers:
 
-    def __init__(self, speakers_list):
-        from tensorflow.keras.utils import to_categorical
-        self.speaker_ids = sorted(speakers_list)
-        self.int_speaker_ids = list(range(len(self.speaker_ids)))
-        self.map_speakers_to_index = dict([(k, v) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
-        self.map_index_to_speakers = dict([(v, k) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
+    def __init__(self, speakers_list, load_speaker=False, speaker_file='./speaker_categories.pkl'):
+        if not load_speaker:
+            from tensorflow.keras.utils import to_categorical
+            self.speaker_ids = sorted(speakers_list)
+            self.int_speaker_ids = list(range(len(self.speaker_ids)))
+            self.map_speakers_to_index = dict([(k, v) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
+            self.map_index_to_speakers = dict([(v, k) for (k, v) in zip(self.speaker_ids, self.int_speaker_ids)])
+            pickle.dump(self.map_index_to_speakers, open(speaker_file, 'w', encoding='utf8'))
+
+        else:
+            self.map_index_to_speakers = pickle.load(open(speaker_file, 'r', encoding='utf8'))
+            self.map_speakers_to_index = dict([(k, v) for (v, k) in self.map_index_to_speakers.items()])
+            self.speaker_ids = self.map_speakers_to_index.keys()
+            self.int_speaker_ids = list(range(len(self.speaker_ids)))
+
         self.speaker_categories = to_categorical(self.int_speaker_ids, num_classes=len(self.speaker_ids))
 
     def get_speaker_from_index(self, index):
