@@ -99,7 +99,7 @@ class SparseCategoricalSpeakers:
         self.speaker_ids = sorted(speakers_list)
         assert len(set(self.speaker_ids)) == len(self.speaker_ids)  # all unique.
         self.map = dict(zip(self.speaker_ids, range(len(self.speaker_ids))))
-        self.reverse_map = dict([(v, k) for (k, v) in zip(self.speaker_ids, range(len(self.speaker_ids)))])
+        self.reverse_map = dict(zip(range(len(self.speaker_ids)), self.speaker_ids))
 
     def get_index(self, speaker_id):
         return self.map[speaker_id]
