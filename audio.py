@@ -4,6 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import librosa
+import scipy.io.wavfile as wf
 import numpy as np
 from python_speech_features import fbank
 from tqdm import tqdm
@@ -21,8 +22,17 @@ def read_mfcc(input_filename, sample_rate):
     offsets = np.where(energy > silence_threshold)[0]
     # left_blank_duration_ms = (1000.0 * offsets[0]) // self.sample_rate  # frame_id to duration (ms)
     # right_blank_duration_ms = (1000.0 * (len(audio) - offsets[-1])) // self.sample_rate
+    
     # TODO: could use trim_silence() here or a better VAD.
-    audio_voice_only = audio[offsets[0]:offsets[-1]]
+
+    vad = VoiceActivityDetection()
+    vad.process(audio)
+    voice_samples = vad.get_voice_samples()
+    audio_voice_only = voice_samples
+
+    # print(audio_voice_only)
+    # audio_voice_only = audio[offsets[0]:offsets[-1]]
+    
     mfcc = mfcc_fbank(audio_voice_only, sample_rate)
     return mfcc
 
@@ -35,6 +45,67 @@ def extract_speaker_and_utterance_ids(filename: str):  # LIBRI.
     assert basename.split('-')[0] == speaker
     return speaker, utterance
 
+# Apply to remove silence 
+class VoiceActivityDetection:
+
+    def __init__(self):
+        self.__step = 160
+        self.__buffer_size = 160 
+        self.__buffer = np.array([],dtype=np.int16)
+        self.__out_buffer = np.array([],dtype=np.int16)
+        self.__n = 0
+        self.__VADthd = 0.
+        self.__VADn = 0.
+        self.__silence_counter = 0
+
+    def vad(self, _frame):
+        frame = np.array(_frame) ** 2.
+        result = True
+        threshold = 0.1
+        thd = np.min(frame) + np.ptp(frame) * threshold
+        self.__VADthd = (self.__VADn * self.__VADthd + thd) / float(self.__VADn + 1.)
+        self.__VADn += 1.
+
+        if np.mean(frame) <= self.__VADthd:
+            self.__silence_counter += 1
+        else:
+            self.__silence_counter = 0
+
+        if self.__silence_counter > 20:
+            result = False
+        return result
+
+    # Push new audio samples into the buffer.
+    def add_samples(self, data):
+        self.__buffer = np.append(self.__buffer, data)
+        result = len(self.__buffer) >= self.__buffer_size
+        # print('__buffer size %i'%self.__buffer.size)
+        return result
+
+    # Pull a portion of the buffer to process
+    # (pulled samples are deleted after being
+    # processed
+    def get_frame(self):
+        window = self.__buffer[:self.__buffer_size]
+        # print(self.__buffer)
+        self.__buffer = self.__buffer[self.__step:]
+        # print('__buffer size %i'%self.__buffer.size)
+        return window
+
+    # Adds new audio samples to the internal
+    # buffer and process them
+    def process(self, data):
+        if self.add_samples(data):
+            while len(self.__buffer) >= self.__buffer_size:
+                # Framing
+                window = self.get_frame()
+                # print('window size %i'%window.size)
+                if self.vad(window):  # speech frame
+                	self.__out_buffer = np.append(self.__out_buffer, window)
+                # print('__out_buffer size %i'%self.__out_buffer.size)
+
+    def get_voice_samples(self):
+        return self.__out_buffer
 
 class Audio:
 
@@ -118,3 +189,8 @@ def mfcc_fbank(signal: np.array, sample_rate: int):  # 1D signal array.
 
 def normalize_frames(m, epsilon=1e-12):
     return [(v - np.mean(v)) / max(np.std(v), epsilon) for v in m]
+
+
+
+# test = read_mfcc("D:/1_CLV/file_1.wav", SAMPLE_RATE)
+# print(test)
