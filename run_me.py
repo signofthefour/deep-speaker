@@ -28,7 +28,7 @@ def main(args):
         start_training(args.working_dir,  pre_training_phase=False, epochs=args.epochs_triplet)
 
     if args.train_classifier:
-        start_training(args.working_dir, pre_training_phase=False, classify=True, epochs=args.epochs_classifier)
+        start_training(args.working_dir, pre_training_phase=True, classify=True, epochs=args.epochs_classifier)
 
 
 if __name__ == '__main__':

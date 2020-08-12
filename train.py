@@ -1,21 +1,42 @@
 import logging
 import os
 
-from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint, TensorBoard
+from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import SGD
 from tqdm import tqdm
 
 from batcher import KerasFormatConverter, LazyTripletBatcher
-from constants import BATCH_SIZE, CHECKPOINTS_SOFTMAX_DIR, CHECKPOINTS_TRIPLET_DIR, CHECKPOINTS_CLASSIFY_DIR, NUM_FRAMES, NUM_FBANKS
+from constants import BATCH_SIZE, CHECKPOINTS_SOFTMAX_DIR, CHECKPOINTS_TRIPLET_DIR, CHECKPOINTS_CLASSIFY_DIR, NUM_FRAMES, NUM_FBANKS, SAMPLE_RATE
 from conv_models import DeepSpeakerModel
 from triplet_loss import deep_speaker_loss
 from utils import load_best_checkpoint, ensures_dir
+from sklearn import svm
+from audio import read_mfcc
+from batcher import sample_from_mfcc
+import numpy as np
+import pickle
 
 logger = logging.getLogger(__name__)
 
 # Otherwise it's just too much logging from Tensorflow...
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
+def load_data(train_dir='./samples/train'):
+    labels = os.listdir(train_dir)
+    mfccs=[]
+    y=[]
+    for label in labels:
+        labelPath = os.path.join(train_dir,label)
+        subfolders=os.listdir(labelPath)
+        for subfolder in subfolders:
+            subfolderPath = os.path.join(labelPath,subfolder)
+            files=os.listdir(subfolderPath)
+            for file in files:
+                mfcc = sample_from_mfcc(read_mfcc(os.path.join(subfolderPath,file), SAMPLE_RATE), NUM_FRAMES)
+                mfccs.append(mfcc)
+                y.append(label)
+    return np.array(mfccs),np.array(y)
 
 def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, epochs=1000, classify=False, initial_epoch=0):
     batcher = LazyTripletBatcher(working_dir, max_length, dsm, classify=classify)
@@ -38,19 +59,25 @@ def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRA
 
     if classify:
         checkpoint_filename = os.path.join(CHECKPOINTS_CLASSIFY_DIR, checkpoint_name + '_{epoch}.h5')
-        logdir = "./logs/classify" + datetime.now().strftime("%Y%m%d-%H%M%S")
     else:
         checkpoint_filename = os.path.join(CHECKPOINTS_TRIPLET_DIR, checkpoint_name + '_{epoch}.h5')
-        logdir = "./logs/triplet" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    
 
     checkpoint = ModelCheckpoint(monitor='val_loss', filepath=checkpoint_filename, save_best_only=True)
     early_stopping = EarlyStopping(monitor='loss', min_delta=0.001, patience=20, verbose=1)
-    tensorboard_callback = TensorBoard(log_dir=logdir)
 
     dsm.m.fit_generator(train_generator(), steps_per_epoch=2000, shuffle=False,
               epochs=epochs, validation_data=test_generator(), validation_steps=len(test_batches),
-              initial_epoch=initial_epoch, callbacks=[checkpoint, early_stopping, tensorboard_callback])
+              initial_epoch=initial_epoch, callbacks=[checkpoint, early_stopping])
 
+    mfccs,y = load_data(os.path.join(working_dir,'samples/train'))
+    features = dsm.m.predict(mfccs)
+
+    clf = svm.SVC()
+    clf.fit(features,y)
+    svm_pickle = open('svm.pkl','wb')
+    pickle.dump(clf,svm_pickle)
+    svm_pickle.close()
 
 def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_test,
                       batch_size=BATCH_SIZE, max_epochs=1000, initial_epoch=0):
@@ -63,8 +90,6 @@ def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_tes
 
     # if the accuracy does not increase over 10 epochs, we reduce the learning rate by half.
     reduce_lr = ReduceLROnPlateau(monitor='val_accuracy', factor=0.5, patience=10, min_lr=0.0001, verbose=1)
-    logdir = "./logs/softmax" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    tensorboard_callback = TensorBoard(log_dir=logdir)
 
     max_len_train = len(kx_train) - len(kx_train) % batch_size
     kx_train = kx_train[0:max_len_train]
@@ -81,17 +106,13 @@ def fit_model_softmax(dsm: DeepSpeakerModel, kx_train, ky_train, kx_test, ky_tes
               verbose=1,
               shuffle=True,
               validation_data=(kx_test, ky_test),
-              callbacks=[early_stopping, reduce_lr, checkpoint, tensorboard_callback])
+              callbacks=[early_stopping, reduce_lr, checkpoint])
 
 
 def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=False):
     ensures_dir(CHECKPOINTS_SOFTMAX_DIR)
     ensures_dir(CHECKPOINTS_TRIPLET_DIR)
     ensures_dir(CHECKPOINTS_CLASSIFY_DIR)
-    ensures_dir('./logs')
-    ensures_dir('./logs/softmax')
-    ensures_dir('./logs/triplet')
-    ensures_dir('./logs/classify')
     batch_input_shape = [None, NUM_FRAMES, NUM_FBANKS, 1]
     if pre_training_phase:
         logger.info('Softmax pre-training.')
@@ -113,19 +134,19 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
         kc = KerasFormatConverter(working_dir)
         num_speakers_softmax = len(kc.categorical_speakers.speaker_ids)
 
-        dsm = DeepSpeakerModel(batch_input_shape, include_softmax=False, include_classifier=classify, num_speakers_softmax=num_speakers_softmax)
+        dsm = DeepSpeakerModel(batch_input_shape, include_softmax=False, include_classifier=False, num_speakers_softmax=num_speakers_softmax)
         classify_checkpoint = load_best_checkpoint(CHECKPOINTS_CLASSIFY_DIR)
         triplet_checkpoint = load_best_checkpoint(CHECKPOINTS_TRIPLET_DIR)
         pre_training_checkpoint = load_best_checkpoint(CHECKPOINTS_SOFTMAX_DIR)
         initial_epoch = 0
 
         if classify:
+            if triplet_checkpoint:
+                logger.info(f'Loading triplet checkpoint: {triplet_checkpoint}.')
+                dsm.m.load_weights(triplet_checkpoint, by_name=True)
             if classify_checkpoint:
                 dsm.m.load_weights(classify_checkpoint)
                 initial_epoch = int(classify_checkpoint.split('/')[-1].split('.')[0].split('_')[-1])
-            elif triplet_checkpoint:
-                logger.info(f'Loading triplet checkpoint: {triplet_checkpoint}.')
-                dsm.m.load_weights(triplet_checkpoint, by_name=True)
             elif pre_training_checkpoint:
                 logger.info(f'Loading pre-training checkpoint: {pre_training_checkpoint}.')
                 dsm.m.load_weights(pre_training_checkpoint, by_name=True)
