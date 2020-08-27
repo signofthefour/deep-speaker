@@ -170,3 +170,4 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
             dsm.m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
         fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify, initial_epoch=initial_epoch)
+        print('Finished')

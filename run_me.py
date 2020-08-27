@@ -13,9 +13,7 @@ def main(args):
 
     if args.preprocess:
         if args.audio_dir is None:
-            return
-        Audio(cache_dir=args.working_dir, audio_dir=args.audio_dir, sample_rate=args.sample_rate)
-
+            return Audio(cache_dir=args.working_dir, audio_dir=args.audio_dir, sample_rate=args.sample_rate)
     if args.build_keras_inputs:
         counts_per_speaker = [int(b) for b in args.counts_per_speaker.split(',')]
         kc = KerasFormatConverter(args.working_dir)
@@ -26,9 +24,8 @@ def main(args):
         if args.pre_training_phase:
             start_training(args.working_dir, pre_training_phase=args.pre_training_phase, epochs=args.epochs_pretrain)
         start_training(args.working_dir,  pre_training_phase=False, epochs=args.epochs_triplet)
-
     if args.train_classifier:
-        start_training(args.working_dir, pre_training_phase=True, classify=True, epochs=args.epochs_classifier)
+        start_training(args.working_dir, pre_training_phase=False, classify=True, epochs=args.epochs_classifier)
 
 
 if __name__ == '__main__':
@@ -44,9 +41,9 @@ if __name__ == '__main__':
     parser.add_argument('--pre_training_phase', default=1, type=int)
     parser.add_argument('--train_classifier', default=1, type=int)
     
-    parser.add_argument('--epochs_pretrain', default=1000, type=int)
-    parser.add_argument('--epochs_triplet', default=1000, type=int)
-    parser.add_argument('--epochs_classifier', default=1000, type=int)
+    parser.add_argument('--epochs_pretrain', default=1, type=int)
+    parser.add_argument('--epochs_triplet', default=1, type=int)
+    parser.add_argument('--epochs_classifier', default=1, type=int)
 
     args = parser.parse_args()
     main(args)
