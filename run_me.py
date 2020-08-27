@@ -41,9 +41,9 @@ if __name__ == '__main__':
     parser.add_argument('--pre_training_phase', default=1, type=int)
     parser.add_argument('--train_classifier', default=1, type=int)
     
-    parser.add_argument('--epochs_pretrain', default=1, type=int)
-    parser.add_argument('--epochs_triplet', default=1, type=int)
-    parser.add_argument('--epochs_classifier', default=1, type=int)
+    parser.add_argument('--epochs_pretrain', default=1000, type=int)
+    parser.add_argument('--epochs_triplet', default=1000, type=int)
+    parser.add_argument('--epochs_classifier', default=1000, type=int)
 
     args = parser.parse_args()
     main(args)
