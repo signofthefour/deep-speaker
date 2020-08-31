@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 def read_mfcc(input_filename, sample_rate):
     audio = Audio.read(input_filename, sample_rate)
 
-    for i in range(audio.shape[0]): audio[i] += np.random.normal(0,0.01)
-
     energy = np.abs(audio)
     silence_threshold = np.percentile(energy, 95)
     offsets = np.where(energy > silence_threshold)[0]
