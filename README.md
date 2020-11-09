@@ -66,7 +66,7 @@ ResCNN Softmax+Triplet trained  | [LibriSpeech](http://www.openslr.org/12/) all 
 
 * Run with pretrained model
 
-```python
+```python   
 import random
 
 import numpy as np

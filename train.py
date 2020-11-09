@@ -2,6 +2,7 @@ import logging
 import os
 
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import SGD
 from tqdm import tqdm
 
@@ -23,20 +24,52 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def load_data(train_dir='./samples/train'):
-    labels = os.listdir(train_dir)
     mfccs=[]
     y=[]
-    for label in labels:
-        labelPath = os.path.join(train_dir,label)
-        subfolders=os.listdir(labelPath)
-        for subfolder in subfolders:
-            subfolderPath = os.path.join(labelPath,subfolder)
-            files=os.listdir(subfolderPath)
-            for file in files:
-                mfcc = sample_from_mfcc(read_mfcc(os.path.join(subfolderPath,file), SAMPLE_RATE), NUM_FRAMES)
-                mfccs.append(mfcc)
-                y.append(label)
-    return np.array(mfccs),np.array(y)
+    import random
+    label = random.randint(0,1)
+    subfolders= os.listdir(train_dir)
+    if label:
+        speaker_dir = random.choice(subfolders)
+        speaker_path = os.path.join(train_dir, speaker_dir)
+        files=os.listdir(speaker_path)
+        utt1_dir = random.choice(files)
+        utt2_dir = random.choice(files)
+        while utt2_dir == utt1_dir and len(files) > 1:
+            utt2_dir = random.choice(files)
+        utt1_path = os.path.join(speaker_path, utt1_dir)
+        utt2_path = os.path.join(speaker_path, utt2_dir)
+        mfcc1 = sample_from_mfcc(read_mfcc(utt1_path, SAMPLE_RATE), NUM_FRAMES)
+        mfcc2 = sample_from_mfcc(read_mfcc(utt2_path, SAMPLE_RATE), NUM_FRAMES)
+        return mfcc1, mfcc2, label
+    
+    else:
+        speaker1_dir = random.choice(subfolders)
+        speaker2_dir = random.choice(subfolders)
+        while speaker1_dir == speaker2_dir:
+            speaker2_dir = random.choice(subfolders)
+        speaker1_path = os.path.join(train_dir, speaker1_dir)
+        speaker2_path = os.path.join(train_dir, speaker2_dir)
+        files=os.listdir(speaker1_dir)
+        utt1_dir = random.choice(files)
+        files=os.listdir(speaker2_dir)
+        utt2_dir = random.choice(files)
+        utt1_path = os.path.join(speaker1_path, utt1_dir)
+        utt2_path = os.path.join(speaker1_path, utt2_dir)
+        mfcc1 = sample_from_mfcc(read_mfcc(utt1_path, SAMPLE_RATE), NUM_FRAMES)
+        mfcc2 = sample_from_mfcc(read_mfcc(utt2_path, SAMPLE_RATE), NUM_FRAMES)
+        return mfcc1, mfcc2, label
+    # for label in labels:
+    #     labelPath = os.path.join(train_dir,label)
+    #     subfolders=os.listdir(labelPath)
+    #     for subfolder in subfolders:
+    #         subfolderPath = os.path.join(labelPath,subfolder)
+    #         files=os.listdir(subfolderPath)
+    #         for file in files:
+    #             mfcc = sample_from_mfcc(read_mfcc(os.path.join(subfolderPath,file), SAMPLE_RATE), NUM_FRAMES)
+    #             mfccs.append(mfcc)
+    #             y.append(label)
+    # return np.array(mfccs),np.array(y)
 
 def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRAMES, batch_size=BATCH_SIZE, epochs=1000, classify=False, initial_epoch=0):
     batcher = LazyTripletBatcher(working_dir, max_length, dsm, classify=classify)
@@ -70,11 +103,14 @@ def fit_model(dsm: DeepSpeakerModel, working_dir: str, max_length: int = NUM_FRA
               epochs=epochs, validation_data=test_generator(), validation_steps=len(test_batches),
               initial_epoch=initial_epoch, callbacks=[checkpoint, early_stopping])
 
-    mfccs,y = load_data(os.path.join(working_dir,'samples/train'))
-    features = dsm.m.predict(mfccs)
-
+    mfcc1, mfcc2, label = load_data(os.path.join(working_dir,'samples/train'))
+    feature1 = dsm.m.predict(np.expand_dims(mfcc1, axis=0))
+    feature2 = dsm.m.predict(np.expand_dims(mfcc2, axis=0))
+    #  load 2 file (random) + label, predict roi dua vao SVM,
+    # dung den triplet
+    features = [feature1, feature2]
     clf = svm.SVC()
-    clf.fit(features,y)
+    clf.fit(features,label) 
     svm_pickle = open('svm.pkl','wb')
     pickle.dump(clf,svm_pickle)
     svm_pickle.close()
@@ -170,4 +206,4 @@ def start_training(working_dir, pre_training_phase=True, epochs=1000, classify=F
             dsm.m.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
         fit_model(dsm, working_dir, NUM_FRAMES, epochs=epochs, classify=classify, initial_epoch=initial_epoch)
-        print('Finished')
+        print('Finished========================')

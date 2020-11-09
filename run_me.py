@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--working_dir', type=str, default='./')
     parser.add_argument('--audio_dir', type=str, default='samples/train')
     parser.add_argument('--sample_rate', default=SAMPLE_RATE, type=int)
-    parser.add_argument('--counts_per_speaker', default='600,100', type=str) # So luong train, test
+    parser.add_argument('--counts_per_speaker', default='360,40', type=str) # So luong train, test
 
     parser.add_argument('--preprocess', default=0, type=int)
     parser.add_argument('--build_keras_inputs', default=0, type=int)

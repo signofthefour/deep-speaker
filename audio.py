@@ -38,8 +38,9 @@ def read_mfcc(input_filename, sample_rate):
     return mfcc
 
 
-def extract_speaker_and_utterance_ids(filename: str):  # LIBRI.
+def extract_speaker_and_utterance_ids(filename : str):  # LIBRI.
     # 'audio/dev-other/116/288045/116-288045-0000.flac'
+    import pdb; pdb.set_trace()
     speaker, _, basename = Path(filename).parts[-3:]
     filename.split('-')
     utterance = os.path.splitext(basename.split('-', 1)[-1])[0]
@@ -193,5 +194,5 @@ def normalize_frames(m, epsilon=1e-12):
 
 
 
-# test = read_mfcc("D:/1_CLV/file_1.wav", SAMPLE_RATE)
-# print(test)
+# test = read_mfcc("/home/nguyendat/Documents/projects/PetProject/VoiceVerification/dataset/dataset/48-M-34/48-10.wav", SAMPLE_RATE)
+# print(test.shape)

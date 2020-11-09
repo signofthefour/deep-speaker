@@ -68,6 +68,9 @@ class DeepSpeakerModel:
 
             if include_classifier:
                 x = Dense(num_speakers_softmax, activation='softmax')(x)
+
+                # x = Dense(1, activation='sigmoid')(x)
+
         self.m = Model(inputs, x, name='ResCNN')
 
         if include_classifier:
