@@ -18,4 +18,4 @@ BATCH_SIZE = 1 * 3  # have to be a multiple of 3.
 # Where the 3 channels are: FBANK, DIFF(FBANK), DIFF(DIFF(FBANK)).
 NUM_FRAMES = 160  # 1 second ~ 100 frames with default params winlen=0.025,winstep=0.01
 NUM_FBANKS = 64
-EXT = 'm4a'
+EXT = 'wav'
